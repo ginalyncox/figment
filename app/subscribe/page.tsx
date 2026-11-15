@@ -10,7 +10,9 @@ async function loadPrice(plan: Plan): Promise<string | null> {
     const price = await stripe().prices.retrieve(priceIdFor(plan));
     if (price.unit_amount == null) return null;
     return formatMoney(price.unit_amount, price.currency);
-  } catch {
+  } catch (err) {
+    // Shown in the Vercel logs so a setup problem can be found. Stripe masks keys in its messages.
+    console.error(`Could not load the ${plan} price from Stripe:`, err instanceof Error ? err.message : err);
     return null;
   }
 }
