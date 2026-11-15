@@ -12,12 +12,21 @@ export async function POST(request: Request) {
   const payload = await request.text();
   const signature = request.headers.get("stripe-signature") || "";
 
-  let event: Stripe.Event;
-  try {
-    event = await stripe().webhooks.constructEventAsync(payload, signature, requireEnv("STRIPE_WEBHOOK_SECRET"));
-  } catch {
-    return NextResponse.json({ error: "Bad signature" }, { status: 400 });
+  // Stripe gives each webhook destination its own signing secret. There are two destinations:
+  // one for "Your account" events and (once Connect is on) one for "Connected accounts" events.
+  const secrets = [requireEnv("STRIPE_WEBHOOK_SECRET"), process.env.STRIPE_CONNECT_WEBHOOK_SECRET].filter(
+    (s): s is string => !!s,
+  );
+  let event: Stripe.Event | null = null;
+  for (const secret of secrets) {
+    try {
+      event = await stripe().webhooks.constructEventAsync(payload, signature, secret);
+      break;
+    } catch {
+      // try the next secret
+    }
   }
+  if (!event) return NextResponse.json({ error: "Bad signature" }, { status: 400 });
 
   // Stripe may deliver the same event twice. Handle each one only once.
   const first = await sql`insert into processed_events (id) values (${event.id}) on conflict do nothing returning id`;
