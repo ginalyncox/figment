@@ -8,7 +8,7 @@ function int(name: string, fallback: number): number {
 }
 
 export const config = {
-  siteName: process.env.NEXT_PUBLIC_SITE_NAME || "AI Video (working title)",
+  siteName: process.env.NEXT_PUBLIC_SITE_NAME || "Figment",
   // On Vercel the address is filled in automatically if NEXT_PUBLIC_SITE_URL is not set.
   siteUrl: (
     process.env.NEXT_PUBLIC_SITE_URL ||

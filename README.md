@@ -1,4 +1,4 @@
-# AI video site (working title)
+# Figment
 
 A site where creators upload AI-made videos. Viewers watch a few free, then subscribe weekly or
 monthly. Each month the subscription money is split: a service fee for Gina Makes LLC, and the rest
@@ -73,6 +73,6 @@ Checks: `npm test` (rules), `npm run typecheck`, `npm run lint`, `npm run build`
 6. **Tax forms for creators (1099s)** are filed from the Stripe dashboard, not by this code.
 7. **Removal requests** email the admin, but someone must act on them. Intimate-image requests have
    a 48-hour legal deadline.
-8. Replace the working title, and every `[BRACKET]` in `content/legal`.
+8. Check the name "Figment" for trademark conflicts, and replace every `[BRACKET]` in `content/legal`.
 
 © 2026 Gina Makes LLC
