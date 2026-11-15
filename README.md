@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI video site (working title)
 
-## Getting Started
+A site where creators upload AI-made videos. Viewers watch a few free, then subscribe weekly or
+monthly. Each month the subscription money is split: a service fee for Gina Makes LLC, and the rest
+to creators by watch time.
 
-First, run the development server:
+Built with Next.js (Vercel), Neon (database), Stripe (payments and creator payouts), Mux (video),
+and Resend (sign-in emails).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Status
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- **Works and is tested:** the paywall rule, the payout math (8 automated tests), the database
+  tables and queries, page rendering, sign-in link creation, and the security checks.
+- **Not yet tested with real accounts:** Stripe, Mux, Neon, and Resend. No keys were available when
+  this was built. Test every flow in Stripe **test mode** before taking real money.
+- **Legal pages are drafts.** A lawyer must review them before outside creators or paying viewers join.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How it works
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Piece | Where |
+| --- | --- |
+| Free-video counter and paywall | `lib/paywall.ts`, `lib/access.ts`, `app/watch/[id]/page.tsx` |
+| Weekly / monthly checkout | `app/subscribe/page.tsx`, `app/api/checkout/route.ts` |
+| Cancel online (Stripe billing page) | `app/account/page.tsx`, `app/api/portal/route.ts` |
+| Stripe events (payments, renewals, refunds) | `app/api/webhooks/stripe/route.ts` |
+| Creator sign-up, license acceptance, payout setup | `app/creator/page.tsx`, `app/api/creator/join/route.ts` |
+| Video upload (straight to Mux) | `components/UploadForm.tsx`, `app/api/creator/videos/route.ts` |
+| Watch-time tracking | `components/Player.tsx`, `app/api/watch/heartbeat/route.ts` |
+| Payout math | `lib/payouts.ts` (pure), `lib/payoutRun.ts` (database + Stripe) |
+| Admin: approve videos, handle reports, send payouts | `app/admin/page.tsx` |
+| Report / takedown form | `app/report/page.tsx`, `app/api/reports/route.ts` |
+| Legal text (edit these files) | `content/legal/*.md` |
 
-## Learn More
+Rules built in:
 
-To learn more about Next.js, take a look at the following resources:
+- Viewers get `FREE_VIDEO_LIMIT` different videos free (default 3). Re-watching one stays free.
+- Only **paying subscribers'** watch time counts toward creator pay. Free views and a creator's own
+  views do not.
+- Every upload waits for admin approval. Nothing goes public automatically.
+- Payouts never run by themselves. An admin previews the numbers, ticks a box, and presses send.
+- Your fee is `PLATFORM_FEE_BPS` (default 2000 = 20%) of revenue after Stripe fees and refunds.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Setup
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Database.** Create a Neon project. Run `psql "$DATABASE_URL" -f db/schema.sql`.
+2. **Stripe (test mode first).**
+   - Turn on **Connect**.
+   - Create one product with two recurring prices: weekly and monthly. Copy the two price ids.
+   - Turn on the **customer portal** and allow cancellation there.
+   - Add a webhook to `https://YOUR-SITE/api/webhooks/stripe` for both *your account* and
+     *connected accounts*, with these events: `checkout.session.completed`,
+     `customer.subscription.created`, `customer.subscription.updated`,
+     `customer.subscription.deleted`, `charge.succeeded`, `charge.updated`, `charge.refunded`,
+     `account.updated`.
+3. **Mux.** Create an access token, a **signing key**, and a webhook to
+   `https://YOUR-SITE/api/webhooks/mux`.
+4. **Resend.** Create an API key and verify a sending domain.
+5. Copy `.env.example` to `.env.local` and fill it in. Add the same values in Vercel.
+6. `npm install`, then `npm run dev`.
 
-## Deploy on Vercel
+Checks: `npm test` (rules), `npm run typecheck`, `npm run lint`, `npm run build`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Known gaps (do these before launch)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Keep creator money in Stripe until payouts are sent.** Creator pay is sent from your Stripe
+   balance. If Stripe has already paid that balance out to your bank, transfers fail. Set your own
+   Stripe payout schedule to manual or monthly, after the creator run.
+2. **Late refunds.** A refund that arrives after a month's payout is recorded but not yet taken back
+   from creators automatically. The license allows deducting it later; the code does not do it yet.
+3. **Free-view counter** uses a cookie for signed-out visitors. Clearing cookies resets it.
+4. **No privacy policy yet.** Needed before launch.
+5. **No sales-tax handling.** Ask an accountant; Stripe Tax can be switched on at checkout.
+6. **Tax forms for creators (1099s)** are filed from the Stripe dashboard, not by this code.
+7. **Removal requests** email the admin, but someone must act on them. Intimate-image requests have
+   a 48-hour legal deadline.
+8. Replace the working title, and every `[BRACKET]` in `content/legal`.
+
+© 2026 Gina Makes LLC
